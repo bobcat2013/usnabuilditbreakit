@@ -16,4 +16,12 @@ public:
 	schema_error(const char* c) : parse_error(c) {}
 };
 
+class sql_error : public std::exception {
+public:
+	sql_error(const char* c) : msg(c) {}
+	const char * what() { return msg; }
+private:
+	const char * msg;
+};
+
 #endif

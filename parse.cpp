@@ -7,8 +7,17 @@
 #include "SQLBackend.h"
 #include "except.h"
 
+//SDXF_CORRECTION: correct for bad test data given to us
+#define SDXF_CORRECTION 1
+
 typedef std::uint8_t byte;
 typedef std::vector<byte> buffer;
+
+void debug_print_buf(const buffer& buf) {
+	for (auto x : buf) {
+		std::cout << '\t' << (int)x << '\n';
+	}
+}
 
 const char * invalid_type_errors[] = {
 	"expected type pending_struct",
@@ -67,16 +76,14 @@ struct chunk_header {
 	bool reserved_bit() const {
 		return flags & 1;
 	}
-	void do_fix() {
-		flags <<= 1; //to work with their incorrect test data
-	}
 	void construct(std::uint8_t* p) {
 		std::memcpy((void*)this, (void*)p, sizeof(*this));
 		construct();
 	}
-	
 	void construct() {
-		do_fix();
+#ifdef SDXF_CORRECTION
+		flags <<= 1; //for working with test files
+#endif
 	}
 	
 } __attribute__((__packed__));
@@ -120,6 +127,7 @@ void check_element_len(const buffer& buf, std::size_t len, std::size_t index) {
 
 void check_element_type(chunk_header::type_t actual, chunk_header::type_t desired) {
 	if (desired != actual) {
+		std::cout << actual << ' ' << desired << '\n';
 		throw schema_error(invalid_type_errors[desired]);
 	}
 }
@@ -138,7 +146,8 @@ void read_data(std::ifstream& stream, char* data, std::size_t len) {
 }
 
 void read_data_buf(std::ifstream& stream, buffer& buf, std::size_t len) {
-	buf.reserve(++len); //have an extra byte at the end to play with
+	buf.reserve(len + 1);//have an extra byte at the end to play with
+	buf.resize(len, 0); 
 	read_data(stream, (char*)buffer_ptr(buf), len);
 }
 
@@ -168,10 +177,11 @@ long get_int_buf(buffer& buf, std::size_t& index) {
 	check_element_len(buf, len, index);
 	check_element_type(head.type(), chunk_header::INT);
 	byte* p = buffer_ptr(buf, index);
+	index += len;
 	for (; *p == 0 && len != 0; ++p) {
 		--len;
 	}
-	long ret = 0;
+	unsigned long ret = 0;
 	if (len > sizeof(ret)) {
 		throw parse_error("integer overflow");
 	}
@@ -179,7 +189,16 @@ long get_int_buf(buffer& buf, std::size_t& index) {
 		ret <<= 8;
 		ret |= *(p++);
 	}
-	index += len;
+#ifdef SDXF_CORRECTION
+	//reverse endianness
+	unsigned long tmp = ret;
+	for (std::uint8_t* p = ((std::uint8_t*)&tmp)+sizeof(tmp);
+		--p >= ((std::uint8_t*)&tmp); )
+	{
+		ret <<= 8;
+		ret |= *p;
+	}
+#endif
 	return ret;
 }
 
@@ -215,12 +234,12 @@ void parse_file(const char* ifname, const char* ofname) {
 	file_header fhead = read_file_head(file, chunkbuf);
 	TransactionStream backend(ofname, fhead.version, fhead.date.c_str());
 	std::size_t iterator;
-	while (!file.eof()) {
+	while (!file.eof() && file.peek() != EOF) {
 		read_struct_buf(file, chunkbuf);
 		iterator = 0;
-		long account_num = get_int_buf(chunkbuf, iterator);
-		char * date = get_char_buf(chunkbuf, iterator);
+		unsigned long account_num = get_int_buf(chunkbuf, iterator);
 		char * money = get_char_buf(chunkbuf, iterator);
+		char * date = get_char_buf(chunkbuf, iterator);
 		check_buffer_empty(chunkbuf, iterator);
 		backend.AddTransaction(account_num, date, money);
 	}
@@ -239,6 +258,11 @@ int main(int argc, char ** argv) {
 	}
 	catch (parse_error& p) {
 		error << "MALFORMED DATA SAFE EXIT\n";
+		//debug
+		//error << p.what() << '\n';
+	}
+	catch (sql_error& s) {
+		error << s.what() << '\n';
 	}
 	catch (...) {
 		//some other sort of error
