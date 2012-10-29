@@ -102,8 +102,8 @@ void TransactionStream::AddTransaction(long account, const char* date_s, const c
 
 #else
 
-const char * sql_create_str = "CREATE TABLE accounts(one int, two bigint, three datetime)";
-const char * sql_update_str = "UPDATE accounts SET two = two + ?, three = date(?) WHERE one = ?";
+const char * sql_create_str = "CREATE TABLE accounts(id INTEGER PRIMARY KEY, balance INTEGER, date DATETIME)";
+const char * sql_update_str = "UPDATE accounts SET balance = balance + ?, date = date(?) WHERE id = ?";
 const char * sql_insert_str = "INSERT INTO accounts VALUES (?, ?, date(?))";
 
 TransactionStream::TransactionStream(const char* ofname, long version, const char* date) {
