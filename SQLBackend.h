@@ -8,7 +8,7 @@
 #ifdef TEXT_BACKEND
 #include <fstream>
 #else
-#include <sqlite3.h>
+#include "sqlite3.h"
 #endif
 
 //should be abstract, but why pay the overhead?
