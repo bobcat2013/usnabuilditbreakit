@@ -170,7 +170,7 @@ void get_header_buf(buffer& buf, chunk_header& h, std::size_t& index) {
 	index += sizeof(h);
 }
 
-long get_int_buf(buffer& buf, std::size_t& index) {
+std::uint64_t get_int_buf(buffer& buf, std::size_t& index) {
 	chunk_header head;
 	get_header_buf(buf, head, index);
 	std::uint32_t len = head.len();
@@ -181,7 +181,7 @@ long get_int_buf(buffer& buf, std::size_t& index) {
 	for (; *p == 0 && len != 0; ++p) {
 		--len;
 	}
-	unsigned long ret = 0;
+	std::uint64_t ret = 0;
 	if (len > sizeof(ret)) {
 		throw parse_error("integer overflow");
 	}
@@ -191,7 +191,7 @@ long get_int_buf(buffer& buf, std::size_t& index) {
 	}
 #ifdef SDXF_CORRECTION
 	//reverse endianness
-	unsigned long tmp = ret;
+	std::uint64_t tmp = ret;
 	for (std::uint8_t* p = ((std::uint8_t*)&tmp)+sizeof(tmp);
 		--p >= ((std::uint8_t*)&tmp); )
 	{
