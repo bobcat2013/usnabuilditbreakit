@@ -247,7 +247,7 @@ void parse_file(const char* ifname, const char* ofname) {
 }
 
 int main(int argc, char ** argv) {
-	std::ostream& error = std::cerr;
+	std::ostream& error = std::cout;
 	if (argc != 3) {
 		error << "Invalid number of arguments\n"
 			"Usage: " << argv[0] << " SDXF SQL\n";
